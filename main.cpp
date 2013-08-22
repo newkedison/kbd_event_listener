@@ -13,8 +13,8 @@
 // Idea from:http://stackoverflow.com/a/2554421/1032255
 
 #include "keytable.h"
+#include "common.h"
 #include <cassert>
-#include <ctime>
 #include <ctype.h>
 #include <fcntl.h>
 #include <fstream>
@@ -35,14 +35,11 @@
 #define KEY_PRESS 1
 #define KEY_KEEPING_PRESSED 2
 
-
-const int MAX_KEY_COUNT = 0x300;
-const size_t RECORD_KEY = 128;  // only record key if key-code less than this
 const char* key_names[MAX_KEY_COUNT];
 int uid = 0;
 int gid = 0;
 
-unsigned int records[RECORD_KEY];
+Record minute_record;
 
 void init_uid_gid()
 {  // {{{
@@ -73,10 +70,11 @@ void save_record(time_t now, const struct tm* timeinfo)
   unsigned int sum = 0;
   for (size_t i = 0; i < RECORD_KEY; ++i)
   {
-    sum += records[i];
+    sum += minute_record.record[i];
   }
   // First element may be 0 all the time, so use it to save sum of all value
-  records[0] = sum;
+  minute_record.record[0] = sum;
+  minute_record.t = now;
   setegid(gid);
   seteuid(uid);
   const char* home = getenv("HOME");
@@ -89,8 +87,7 @@ void save_record(time_t now, const struct tm* timeinfo)
   std::ofstream f(file_name, std::ifstream::binary | std::ios::app);
   if (f)
   {
-    f.write(reinterpret_cast<char*>(&now), sizeof(now));
-    f.write(reinterpret_cast<char*>(records), sizeof(records));
+    f.write(reinterpret_cast<char*>(&minute_record), sizeof(Record));
     f.close();
   }
   seteuid(0);
@@ -110,14 +107,14 @@ void process_key_event(const struct input_event& event)
   {
     if (last_minute != -1)
       save_record(now, timeinfo);
-    memset(records, 0, sizeof(records));
+    memset(&minute_record, 0, sizeof(Record));
     last_minute = minute;
   }
   if (event.value == KEY_PRESS)
   {
     if (event.code < RECORD_KEY)
     {
-      ++ records[event.code];
+      ++ minute_record.record[event.code];
     }
   }
 }  // }}}
@@ -175,7 +172,6 @@ int main(int argc, const char* argv[])
         "(/dev/input/eventX)\n", argv[0]);
     return 1;
   }
-  memset(records, 0, sizeof(records));
   init_key_names();
   init_uid_gid();
   int fds[argc - 1];
