@@ -1,6 +1,6 @@
 /*
  * =============================================================================
- *       Filename:  kbd_hook.cpp
+ *       Filename:  main.cpp
  *    Description:  
  *        Version:  1.0
  *        Created:  2013-08-21 10:23:06
@@ -65,39 +65,28 @@ void init_key_names()
   }
 }  // }}}
 
-void save_record(time_t now, const struct tm* timeinfo)
+void save_to_file(const char* file_name, const Record& record)
 {  // {{{
-  unsigned int sum = 0;
-  for (size_t i = 0; i < RECORD_KEY; ++i)
-  {
-    sum += minute_record.record[i];
-  }
-  // First element may be 0 all the time, so use it to save sum of all value
-  minute_record.record[0] = sum;
-  minute_record.t = now;
-  setegid(gid);
+  setegid(gid);  // change gid first, otherwise it will fail
   seteuid(uid);
   const char* home = getenv("HOME");
   char dir[1000];
   snprintf(dir, 1000, "%s/log", home);
   mkdir(dir, 0755);
-  char file_name[1000];
-  snprintf(file_name, 1000, "%s/kbd_%04d-%02d-%02d.log", dir,
-      timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
-  std::ofstream f(file_name, std::ifstream::binary | std::ios::app);
+  char full_file_name[1000];
+  snprintf(full_file_name, 1000, "%s/%s", dir, file_name);
+  std::ofstream f(full_file_name, std::ifstream::binary | std::ios::app);
   if (f)
   {
-    f.write(reinterpret_cast<char*>(&minute_record), sizeof(Record));
+    f.write(reinterpret_cast<const char*>(&record), sizeof(Record));
     f.close();
   }
   seteuid(0);
   setegid(0);
 }  // }}}
 
-void process_key_event(const struct input_event& event)
+void save_record()
 {  // {{{
-  if (event.type != EV_KEY)
-    return;
   static int last_minute = -1;
   time_t now = time(NULL);
   struct tm* timeinfo = localtime(&now);
@@ -106,10 +95,32 @@ void process_key_event(const struct input_event& event)
   if (minute != last_minute)
   {
     if (last_minute != -1)
-      save_record(now, timeinfo);
+    {
+      unsigned int sum = 0;
+      for (size_t i = 0; i < RECORD_KEY; ++i)
+      {
+        sum += minute_record.record[i];
+      }
+      if (sum > 0)  // do not save if no key press, reduce disk usage
+      {
+        // First element may be 0 all the time, use it to save sum of all value
+        minute_record.record[0] = sum;
+        minute_record.t = now;
+        char file_name[100];
+        snprintf(file_name, 1000, "kbd_%04d-%02d-%02d.log",
+            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+        save_to_file(file_name, minute_record);
+      }
+    }
     memset(&minute_record, 0, sizeof(Record));
     last_minute = minute;
   }
+}  // }}}
+
+void process_key_event(const struct input_event& event)
+{  // {{{
+  if (event.type != EV_KEY)
+    return;
   if (event.value == KEY_PRESS)
   {
     if (event.code < RECORD_KEY)
@@ -161,7 +172,6 @@ void read_event(int fd)
       process_key_event(events[i]);
     }
   }
-
 }  // }}}
 
 int main(int argc, const char* argv[])
@@ -178,7 +188,7 @@ int main(int argc, const char* argv[])
   int max_fd = init_fds(argc, argv, fds);
   if (max_fd < 0)
   {
-    perror("Couldn't open all input device, do you forget to run as root?");
+    perror("Couldn't open all input devices, do you forget to run as root?");
     return 1;
   }
   ++ max_fd;
@@ -186,6 +196,7 @@ int main(int argc, const char* argv[])
   fd_set fds_read;
   for(;;)
   {
+    save_record();
     struct timeval tv = {1, 0};
     FD_ZERO(&fds_read);
     for (size_t i = 0; i < sizeof(fds) / sizeof(fds[0]); ++ i)
