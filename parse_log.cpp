@@ -114,30 +114,30 @@ void process_log_file(const char* file_name)
 
 bool process_log_dir(const char* dir_name)
 {  // {{{
-  DIR* dir = opendir(dir_name);
-  if (!dir)
+  char buffer[1000];
+  snprintf(buffer, 1000, "ls %s", dir_name);
+  FILE* command_result = popen(buffer, "r");
+  if (!command_result)
   {
     fprintf(stderr, "cannot open %s\n", dir_name);
     return false;
   }
-  struct dirent* ent;
   char full_file_name[1000];
-  while ((ent = readdir(dir)) != NULL)
+  while(fgets(buffer, sizeof(buffer), command_result))
   {
-    if (strlen(ent->d_name) > 0 && ent->d_name[0] != '.')
-    {
-      snprintf(full_file_name, 1000, "%s/%s", dir_name, ent->d_name);
-      process_log_file(full_file_name);
-      add_to_record(total, day_total);
-    }
+    buffer[strlen(buffer) - 1] = '\0';
+    snprintf(full_file_name, 1000, "%s/%s", dir_name, buffer);
+    process_log_file(full_file_name);
+    add_to_record(total, day_total);
   }
-  closedir(dir);
+  pclose(command_result);
+
   std::cout << "============SUMMARY==============" << std::endl;
   std::cout << "Total press: " << total.record[0] << std::endl;
-  auto top = find_top(total, 10);
+  auto top = find_top(total, 20);
   if (!top.empty())
   {
-    std::cout << "TOP 10:" << std::endl;
+    std::cout << "TOP 20:" << std::endl;
     for (auto i: top)
     {
       printf("%20s:%8d\n", key_map.find(i)->second, total.record[i]);

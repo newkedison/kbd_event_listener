@@ -49,7 +49,7 @@ will parse all log files in ~/log
 
 If you want to parse log file yourself, the format of log file is simple
 
-There are hundreds of "record" in the log file, every "record" is a struct called "Record" in [common.h](common.h), so, just read them and do what you want. 
+> There are hundreds of "record" in the log file, every "record" is a struct called "Record" in [common.h](common.h), so, just read them and do what you want. 
 
 Note every recode is summary of one minute, first 4 byte is a `time_t` variable indicate the time, and the following 128 `int`s is how many times the key of this code is pressed.
 
@@ -63,6 +63,6 @@ Since only root can access the event devices, this program must run as root, the
 
 If you prefer to use method 2, you can simply run `sudo make change_mode`
 
-**Note**: if you want to copy this file to other directory, do not forget to copy with `cp -a`.
+**Note**: if you want to copy a 'setuid executable file' to other directory, do not forget to copy with `cp -a`.
 
-With either method, the log file created by this programe will make the owner and group to be your real account, not the root.
+With either method, the log file created by this programe will make the owner and group to be your real account, not the root, read the `init_uid_gid()` and `save_to_file()` function in [main.cpp](main.cpp) for more detail.
