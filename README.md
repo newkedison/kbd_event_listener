@@ -1,4 +1,4 @@
-Linux keybord event listener
+Linux keybord event listener [![Build Status](https://travis-ci.org/newkedison/kbd_event_listener.png?branch=master)](https://travis-ci.org/newkedison/kbd_event_listener)
 ============================
 
 This program can listen to events of keyboard and then save them every minute to a log file.
