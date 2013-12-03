@@ -66,3 +66,7 @@ If you prefer to use method 2, you can simply run `sudo make change_mode`
 **Note**: if you want to copy a 'setuid executable file' to other directory, do not forget to copy with `cp -a`.
 
 With either method, the log file created by this programe will make the owner and group to be your real account, not the root, read the `init_uid_gid()` and `save_to_file()` function in [main.cpp](main.cpp) for more detail.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/newkedison/kbd_event_listener/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
